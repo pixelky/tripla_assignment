@@ -45,3 +45,5 @@ group :development do
   gem "listen", "~> 3.3"
 end
 
+# Use redis for caching
+gem 'redis'

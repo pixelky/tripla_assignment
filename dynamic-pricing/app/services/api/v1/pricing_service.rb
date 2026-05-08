@@ -7,13 +7,17 @@ module Api::V1
     end
 
     def run
-      # TODO: Start to implement here
-      rate = RateApiClient.get_rate(period: @period, hotel: @hotel, room: @room)
-      if rate.success?
-        parsed_rate = JSON.parse(rate.body)
-        @result = parsed_rate['rates'].detect { |r| r['period'] == @period && r['hotel'] == @hotel && r['room'] == @room }&.dig('rate')
+      cache_key = "rate_#{@period}_#{@hotel}_#{@room}"
+      @result = Rails.cache.read(cache_key)
+      return if @result.present?
+
+      response = RateApiClient.get_rate(period: @period, hotel: @hotel, room: @room)
+      if response.success?
+        parsed_response = JSON.parse(response.body)
+        @result = parsed_response['rates'].detect { |r| r['period'] == @period && r['hotel'] == @hotel && r['room'] == @room }&.dig('rate')
+        Rails.cache.write(cache_key, @result, expires_in: 5.minute)
       else
-        errors << rate.body['error']
+        errors << response.body['error']
       end
     end
   end
