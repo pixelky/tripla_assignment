@@ -8,4 +8,14 @@ class BaseService
   def errors
     @errors ||= []
   end
+
+  private
+
+  def logger
+    Rails.logger
+  end
+
+  def cache
+    Rails.cache
+  end
 end

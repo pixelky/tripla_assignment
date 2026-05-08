@@ -25,6 +25,50 @@ class Api::V1::PricingControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "should return error when rate missing in response" do
+    mock_body = {
+      'rates' => [
+        { 'period' => 'Summer', 'hotel' => 'FloatingPointResort', 'room' => 'SingletonRoom' }
+      ]
+    }.to_json
+
+    mock_response = OpenStruct.new(success?: true, body: mock_body)
+
+    RateApiClient.stub(:get_rate, mock_response) do
+      get api_v1_pricing_url, params: {
+        period: "Summer",
+        hotel: "FloatingPointResort",
+        room: "SingletonRoom"
+      }
+
+      assert_response :internal_server_error
+      assert_equal "application/json", @response.media_type
+
+      json_response = JSON.parse(@response.body)
+      assert_includes json_response["error"], "Rate not found. Please try again later."
+    end
+  end
+
+  test "should return error when API returns empty response" do
+    mock_body = {}.to_json
+
+    mock_response = OpenStruct.new(success?: true, body: mock_body)
+
+    RateApiClient.stub(:get_rate, mock_response) do
+      get api_v1_pricing_url, params: {
+        period: "Summer",
+        hotel: "FloatingPointResort",
+        room: "SingletonRoom"
+      }
+
+      assert_response :internal_server_error
+      assert_equal "application/json", @response.media_type
+
+      json_response = JSON.parse(@response.body)
+      assert_includes json_response["error"], "Rate not found. Please try again later."
+    end
+  end
+
   test "should return error when rate API fails" do
     mock_response = OpenStruct.new(success?: false, body: { 'error' => 'Rate not found' })
 
@@ -35,11 +79,11 @@ class Api::V1::PricingControllerTest < ActionDispatch::IntegrationTest
         room: "SingletonRoom"
       }
 
-      assert_response :bad_request
+      assert_response :internal_server_error
       assert_equal "application/json", @response.media_type
 
       json_response = JSON.parse(@response.body)
-      assert_includes json_response["error"], "Rate not found"
+      assert_includes json_response["error"], "Rate not found. Please try again later."
     end
   end
 
