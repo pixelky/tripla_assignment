@@ -7,37 +7,32 @@ module Api::V1
     end
 
     def run
-      cache_key = "rate_#{@period}_#{@hotel}_#{@room}"
-      @result = cache.read(cache_key)
+      cache_key = "rate/#{@period}_#{@hotel}_#{@room}"
+      # @result = cache.read(cache_key)
       return if @result.present?
 
-      response = RateApiClient.get_rate(period: @period, hotel: @hotel, room: @room)
-      if response.success?
-        parsed_response = JSON.parse(response.body)
-        rates = parsed_response['rates']
+      pricing_response = RateApiClient.get_rate(period: @period, hotel: @hotel, room: @room)
+      matching_rate = pricing_response.find_rate(period: @period, hotel: @hotel, room: @room)
 
-        unless rates.is_a?(Array)
-          logger.error "Unexpected Rate API response format: missing or invalid rates"
-          errors << "Rate not found. Please try again later."
-          return
-        end
+      @result = matching_rate&.rate
 
-        @result = rates.detect { |r| r['period'] == @period && r['hotel'] == @hotel && r['room'] == @room }&.dig('rate')
-
-        if @result.present?
-          cache.write(cache_key, @result, expires_in: 5.minute)
-        else
-          # Confirm why API returns a missing rate to determine expected behavior
-          # For now, return generic error
-          logger.warn "Rate not found for period: #{@period}, hotel: #{@hotel}, room: #{@room}"
-          errors << "Rate not found. Please try again later."
-          return
-        end
+      if @result.present?
+        cache.write(cache_key, @result, expires_in: 5.minute)
       else
-        logger.error "Error in RateApiClient.get_rate: #{response.body}"
-        errors << "Rate not found. Please try again later."
+        # Confirm why API returns a missing rate to determine expected behavior
+        # For now, return generic error
+        fail_with_default_error("Rate not found for period: #{@period}, hotel: #{@hotel}, room: #{@room}")
         return
       end
+    rescue ExternalApiClientError => e
+      fail_with_default_error("External API request failed: #{e.message}")
+    end
+
+    private
+
+    def fail_with_default_error(log_message)
+      logger.error(log_message)
+      errors << "Rate not found. Please try again later."
     end
   end
 end

@@ -1,0 +1,1 @@
+class ExternalApiClientError < StandardError; end

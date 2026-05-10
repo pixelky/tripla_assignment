@@ -1,5 +1,9 @@
+require_relative "http_client_with_retries"
+
 class RateApiClient
   include HTTParty
+  extend HttpClientWithRetries
+
   base_uri ENV.fetch('RATE_API_URL', 'http://localhost:8080')
   headers "Content-Type" => "application/json"
   headers 'token' => ENV.fetch('RATE_API_TOKEN', '04aa6f42aa03f220c2ae9a276cd68c62')
@@ -14,6 +18,73 @@ class RateApiClient
         }
       ]
     }.to_json
-    self.post("/pricing", body: params, timeout: 2)
+
+    response = post_with_retries(
+      "/pricing",
+      { body: params },
+    )
+
+    handle_error_response(response) unless response.success?
+
+    GetRateResponse.from_hash(JSON.parse(response.body))
+  rescue => e
+    Rails.logger.error("RateApiClient.get_rate failed: #{e.class} - #{e.message}")
+    raise ExternalApiClientError, "Rate API request failed"
+  end
+
+  def self.handle_error_response(response)
+    Rails.logger.error("RateApiClient.get_rate failed: #{response.code}: #{response.body}")
+    raise ExternalApiClientError, "Rate API request failed"
+  end
+
+  private_class_method :handle_error_response
+end
+
+# Improvement: Move below classes to another directory
+class Rate
+  attr_reader :period, :hotel, :room, :rate
+
+  def self.from_hash(payload)
+    new(
+      period: payload["period"],
+      hotel: payload["hotel"],
+      room: payload["room"],
+      rate: payload["rate"]
+    )
+  end
+
+  def initialize(period:, hotel:, room:, rate:)
+    @period = period
+    @hotel = hotel
+    @room = room
+    @rate = rate
+  end
+
+  def matches?(period:, hotel:, room:)
+    @period == period &&
+      @hotel == hotel &&
+      @room == room
+  end
+end
+
+class GetRateResponse
+  attr_reader :rates
+
+  def self.from_hash(payload)
+    rates = payload["rates"]
+
+    unless rates.is_a?(Array)
+      raise ExternalApiClientError, "Rate API response missing or invalid rates"
+    end
+
+    new(rates: rates.map { |rate| Rate.from_hash(rate) })
+  end
+
+  def initialize(rates:)
+    @rates = rates
+  end
+
+  def find_rate(period:, hotel:, room:)
+    rates.find { |rate| rate.matches?(period:, hotel:, room:) }
   end
 end

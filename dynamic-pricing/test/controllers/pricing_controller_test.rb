@@ -1,16 +1,20 @@
 require "test_helper"
+require Rails.root.join("lib/rate_api_client")
 
 class Api::V1::PricingControllerTest < ActionDispatch::IntegrationTest
   test "should get pricing with all parameters" do
-    mock_body = {
-      'rates' => [
-        { 'period' => 'Summer', 'hotel' => 'FloatingPointResort', 'room' => 'SingletonRoom', 'rate' => '15000' }
+    pricing_response = GetRateResponse.from_hash({
+      "rates" => [
+        {
+          "period" => "Summer",
+          "hotel" => "FloatingPointResort",
+          "room" => "SingletonRoom",
+          "rate" => "15000"
+        }
       ]
-    }.to_json
+    })
 
-    mock_response = OpenStruct.new(success?: true, body: mock_body)
-
-    RateApiClient.stub(:get_rate, mock_response) do
+    RateApiClient.stub(:get_rate, pricing_response) do
       get api_v1_pricing_url, params: {
         period: "Summer",
         hotel: "FloatingPointResort",
@@ -26,15 +30,17 @@ class Api::V1::PricingControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "should return error when rate missing in response" do
-    mock_body = {
-      'rates' => [
-        { 'period' => 'Summer', 'hotel' => 'FloatingPointResort', 'room' => 'SingletonRoom' }
+    pricing_response = GetRateResponse.from_hash({
+      "rates" => [
+        {
+          "period" => "Summer",
+          "hotel" => "FloatingPointResort",
+          "room" => "SingletonRoom"
+        }
       ]
-    }.to_json
+    })
 
-    mock_response = OpenStruct.new(success?: true, body: mock_body)
-
-    RateApiClient.stub(:get_rate, mock_response) do
+    RateApiClient.stub(:get_rate, pricing_response) do
       get api_v1_pricing_url, params: {
         period: "Summer",
         hotel: "FloatingPointResort",
@@ -49,30 +55,10 @@ class Api::V1::PricingControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
-  test "should return error when API returns empty response" do
-    mock_body = {}.to_json
+  test "should return error when client raises exception" do
+    get_rate = ->(**) { raise ExternalApiClientError, "Rate API response missing or invalid rates" }
 
-    mock_response = OpenStruct.new(success?: true, body: mock_body)
-
-    RateApiClient.stub(:get_rate, mock_response) do
-      get api_v1_pricing_url, params: {
-        period: "Summer",
-        hotel: "FloatingPointResort",
-        room: "SingletonRoom"
-      }
-
-      assert_response :internal_server_error
-      assert_equal "application/json", @response.media_type
-
-      json_response = JSON.parse(@response.body)
-      assert_includes json_response["error"], "Rate not found. Please try again later."
-    end
-  end
-
-  test "should return error when rate API fails" do
-    mock_response = OpenStruct.new(success?: false, body: { 'error' => 'Rate not found' })
-
-    RateApiClient.stub(:get_rate, mock_response) do
+    RateApiClient.stub(:get_rate, get_rate) do
       get api_v1_pricing_url, params: {
         period: "Summer",
         hotel: "FloatingPointResort",
