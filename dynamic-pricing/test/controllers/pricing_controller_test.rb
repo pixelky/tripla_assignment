@@ -56,7 +56,7 @@ class Api::V1::PricingControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "should return error when client raises exception" do
-    get_rate = ->(**) { raise ExternalApiClientError, "Rate API response missing or invalid rates" }
+    get_rate = ->(**) { raise ExternalApiClientException, "Rate API response missing or invalid rates" }
 
     RateApiClient.stub(:get_rate, get_rate) do
       get api_v1_pricing_url, params: {

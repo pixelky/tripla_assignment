@@ -29,12 +29,12 @@ class RateApiClient
     GetRateResponse.from_hash(JSON.parse(response.body))
   rescue => e
     Rails.logger.error("RateApiClient.get_rate failed: #{e.class} - #{e.message}")
-    raise ExternalApiClientError, "Rate API request failed"
+    raise ExternalApiClientException, "Rate API request failed"
   end
 
   def self.handle_error_response(response)
     Rails.logger.error("RateApiClient.get_rate failed: #{response.code}: #{response.body}")
-    raise ExternalApiClientError, "Rate API request failed"
+    raise ExternalApiClientException, "Rate API request failed"
   end
 
   private_class_method :handle_error_response
@@ -74,7 +74,7 @@ class GetRateResponse
     rates = payload["rates"]
 
     unless rates.is_a?(Array)
-      raise ExternalApiClientError, "Rate API response missing or invalid rates"
+      raise ExternalApiClientException, "Rate API response missing or invalid rates"
     end
 
     new(rates: rates.map { |rate| Rate.from_hash(rate) })

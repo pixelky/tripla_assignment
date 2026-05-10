@@ -24,7 +24,7 @@ module Api::V1
         fail_with_default_error("Rate not found for period: #{@period}, hotel: #{@hotel}, room: #{@room}")
         return
       end
-    rescue ExternalApiClientError => e
+    rescue ExternalApiClientException => e
       fail_with_default_error("External API request failed: #{e.message}")
     end
 
