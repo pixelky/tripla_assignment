@@ -1,5 +1,7 @@
 module Api::V1
   class PricingService < BaseService
+    CACHE_TTL = 5.minutes
+
     def initialize(period:, hotel:, room:)
       @period = period
       @hotel = hotel
@@ -7,20 +9,17 @@ module Api::V1
     end
 
     def run
-      cache_key = "rate/#{@period}_#{@hotel}_#{@room}"
-      # @result = cache.read(cache_key)
+      cache_key = cache_key_for(period: @period, hotel: @hotel, room: @room)
+      @result = cache.read(cache_key)
       return if @result.present?
 
-      pricing_response = RateApiClient.get_rate(period: @period, hotel: @hotel, room: @room)
-      matching_rate = pricing_response.find_rate(period: @period, hotel: @hotel, room: @room)
+      # If rate not in cache, fetch all rates and write to cache
+      pricing_response = RateApiClient.get_all_rates
+      write_rates_to_cache(pricing_response.rates)
 
-      @result = matching_rate&.rate
+      @result = cache.read(cache_key)
 
-      if @result.present?
-        cache.write(cache_key, @result, expires_in: 5.minute)
-      else
-        # Confirm why API returns a missing rate to determine expected behavior
-        # For now, return generic error
+      unless @result.present?
         fail_with_default_error("Rate not found for period: #{@period}, hotel: #{@hotel}, room: #{@room}")
         return
       end
@@ -29,6 +28,22 @@ module Api::V1
     end
 
     private
+
+    def write_rates_to_cache(rates)
+      rates.each do |rate|
+        next unless rate.rate.present?
+
+        cache.write(
+          cache_key_for(period: rate.period, hotel: rate.hotel, room: rate.room),
+          rate.rate,
+          expires_in: CACHE_TTL
+        )
+      end
+    end
+
+    def cache_key_for(period:, hotel:, room:)
+      "rate/#{period}_#{hotel}_#{room}"
+    end
 
     def fail_with_default_error(log_message)
       logger.error(log_message)
