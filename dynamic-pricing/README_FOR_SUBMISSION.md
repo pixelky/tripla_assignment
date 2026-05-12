@@ -75,5 +75,10 @@ In a real-life scenario, we can ensure that the cache service is deployed with h
 - We could run the pricing model and cache periodically instead of on-demand.
 - Figure out why the pricing model sometimes times out or returns missing rates and address those issues within the pricing model.
 
+## AI Usage
+- I used RubyMine's built-in AI assistant.
+- As I am completely unfamiliar with Ruby, AI was used to write the bulk of the code in the submission, while I provided the logic.
+- Tests were also written using AI, and I reviewed the test cases.
+
 ## Running the Service
 - Please refer to the Quickstart Guide in the original README.
