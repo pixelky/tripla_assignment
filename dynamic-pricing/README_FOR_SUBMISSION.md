@@ -16,7 +16,7 @@ Permutating at least two parameters (period + room/hotel) at a time may work, bu
 Within the scope of this assignment, although making a call for all combinations is expensive, it seems sensible to fetch all rates at once on each API call and cache them, which is the approach I chose for this assignment.
 
 In regard to caching, I decided to return an error immediately if the cache is down, instead of fetching directly from the pricing model.
-If we fetch directly from the pricing model during the cache downtime, we may easily exceed the 1,000 call rate limit of the pricing model API.
+An alternative would be to fetch directly from the pricing model during the cache downtime, but we may easily exceed the 1,000 call rate limit of the pricing model API.
 In a real-life scenario, we can ensure that the cache service is deployed with high availability to minimize any issues.
 
 ## Changes Made
