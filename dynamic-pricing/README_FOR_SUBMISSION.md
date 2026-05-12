@@ -13,7 +13,7 @@ There are a total of 36 (4 periods * 3 hotels * 3 rooms) possible combinations o
 In the worst case, if all 36 combinations are queried every 5 minutes, the service would need to make 36 * 288 = 10,224 API calls per day, which exceeds the 1,000 call limit.
 Therefore, it seems necessary to reduce the number of API calls by fetching multiple rates at once.
 Permutating at least two parameters (period + room/hotel) at a time may work, but brings us near the rate limit (288 * 3 = 816 calls).
-With the constraints outlined by this assignment, it seems sensible to fetch all rates at once on each API call and cache them, which is the approach I chose for this assignment.
+Within the scope of this assignment, although making a call for all combinations is expensive, it seems sensible to fetch all rates at once on each API call and cache them, which is the approach I chose for this assignment.
 
 In regard to caching, I decided to return an error immediately if the cache is down, instead of fetching directly from the pricing model.
 If we fetch directly from the pricing model during the cache downtime, we may easily exceed the 1,000 call rate limit of the pricing model API.
@@ -22,7 +22,7 @@ In a real-life scenario, we can ensure that the cache service is deployed with h
 ## Changes Made
 
 ### Summary
-- Implemented redis caching for rates.
+- Implemented redis caching for rates. (Added redis to docker-compose)
 - Fetch all rates instead of just the requested rate to warm cache.
 - Implemented HTTP retries for the API call to the pricing model to handle intermittent issues.
 - Improved error handling and added logging.
@@ -74,3 +74,6 @@ In a real-life scenario, we can ensure that the cache service is deployed with h
 - There will not be a fixed number of combinations of parameters, so we need a more complicated querying strategy backed by analytics.
 - We could run the pricing model and cache periodically instead of on-demand.
 - Figure out why the pricing model sometimes times out or returns missing rates and address those issues within the pricing model.
+
+## Running the Service
+- Please refer to the Quickstart Guide in the original README.

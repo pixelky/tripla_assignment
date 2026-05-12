@@ -14,10 +14,11 @@ module Api::V1
 
       # If cache is down, just return an error
       unless cache_result[:success]
-        fail_with_default_error("Rate not found for period: #{@period}, hotel: #{@hotel}, room: #{@room}")
+        fail_with_default_error
         return
       end
 
+      # If rate is found in cache, return it. Else fetch from pricing model and write to cache
       @result = cache_result[:value]
       return if @result.present?
 
