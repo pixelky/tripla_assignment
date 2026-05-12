@@ -6,11 +6,12 @@ module Api::V1
     REQUESTED_CACHE_KEY = "rate/Summer_FloatingPointResort_SingletonRoom"
 
     setup do
-      Rails.cache.clear
+      @cache = ActiveSupport::Cache::MemoryStore.new
+      @cache.clear
     end
 
     test "returns cached rate without calling rate api client" do
-      Rails.cache.write(REQUESTED_CACHE_KEY, "15000", expires_in: 5.minutes)
+      @cache.write(REQUESTED_CACHE_KEY, "15000", expires_in: 5.minutes)
 
       get_all_rates = -> { raise "RateApiClient.get_all_rates should not be called on cache hit" }
 
@@ -21,10 +22,38 @@ module Api::V1
           room: "SingletonRoom"
         )
 
-        service.run
+        service.stub(:cache, @cache) do
+          service.run
+        end
 
         assert service.valid?
         assert_equal "15000", service.result
+      end
+    end
+
+    test "returns error when cache is down" do
+      broken_cache = Class.new do
+        def read(_cache_key)
+          raise StandardError, "cache unavailable"
+        end
+      end.new
+
+      get_all_rates = -> { raise "RateApiClient.get_all_rates should not be called when cache is down" }
+
+      RateApiClient.stub(:get_all_rates, get_all_rates) do
+        service = PricingService.new(
+          period: "Summer",
+          hotel: "FloatingPointResort",
+          room: "SingletonRoom"
+        )
+
+        service.stub(:cache, broken_cache) do
+          service.run
+        end
+
+        refute service.valid?
+        assert_nil service.result
+        assert_includes service.errors, "Rate not found. Please try again later."
       end
     end
 
@@ -53,7 +82,9 @@ module Api::V1
           room: "SingletonRoom"
         )
 
-        service.run
+        service.stub(:cache, @cache) do
+          service.run
+        end
 
         assert service.valid?
         assert_equal "15000", service.result
@@ -85,10 +116,12 @@ module Api::V1
           room: "SingletonRoom"
         )
 
-        service.run
+        service.stub(:cache, @cache) do
+          service.run
+        end
 
-        assert_equal "15000", Rails.cache.read("rate/Summer_FloatingPointResort_SingletonRoom")
-        assert_equal "12000", Rails.cache.read("rate/Winter_GitawayHotel_BooleanTwin")
+        assert_equal "15000", @cache.read("rate/Summer_FloatingPointResort_SingletonRoom")
+        assert_equal "12000", @cache.read("rate/Winter_GitawayHotel_BooleanTwin")
       end
     end
 
@@ -116,10 +149,12 @@ module Api::V1
           room: "BooleanTwin"
         )
 
-        service.run
+        service.stub(:cache, @cache) do
+          service.run
+        end
 
-        assert_nil Rails.cache.read("rate/Summer_FloatingPointResort_SingletonRoom")
-        assert_equal "12000", Rails.cache.read("rate/Winter_GitawayHotel_BooleanTwin")
+        assert_nil @cache.read("rate/Summer_FloatingPointResort_SingletonRoom")
+        assert_equal "12000", @cache.read("rate/Winter_GitawayHotel_BooleanTwin")
       end
     end
 
@@ -142,7 +177,9 @@ module Api::V1
           room: "SingletonRoom"
         )
 
-        service.run
+        service.stub(:cache, @cache) do
+          service.run
+        end
 
         refute service.valid?
         assert_nil service.result
@@ -168,12 +205,14 @@ module Api::V1
           room: "SingletonRoom"
         )
 
-        service.run
+        service.stub(:cache, @cache) do
+          service.run
+        end
 
         refute service.valid?
         assert_nil service.result
         assert_includes service.errors, "Rate not found. Please try again later."
-        assert_nil Rails.cache.read(REQUESTED_CACHE_KEY)
+        assert_nil @cache.read(REQUESTED_CACHE_KEY)
       end
     end
 
@@ -187,7 +226,9 @@ module Api::V1
           room: "SingletonRoom"
         )
 
-        service.run
+        service.stub(:cache, @cache) do
+          service.run
+        end
 
         refute service.valid?
         assert_nil service.result
